@@ -1,0 +1,9 @@
+**
+!pyproject.toml
+!uv.lock
+!collect/
+!collect/*.py
+!bridge/
+!bridge/*.py
+!docker/
+!docker/*.Dockerfile

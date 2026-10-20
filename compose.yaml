@@ -1,0 +1,52 @@
+services:
+  collect:
+    build:
+      context: .
+      dockerfile: docker/collect.Dockerfile
+    environment:
+      COLLECT_TOKEN: ${COLLECT_TOKEN:?Set COLLECT_TOKEN in .env}
+      COLLECT_DB_PATH: /data/notes.sqlite3
+    user: "10001:10001"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - notes:/data
+    networks: [internal]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5).read()"]
+      interval: 10s
+      timeout: 6s
+      retries: 5
+  bridge:
+    build:
+      context: .
+      dockerfile: docker/bridge.Dockerfile
+    environment:
+      BRIDGE_TOKEN: ${BRIDGE_TOKEN:?Set BRIDGE_TOKEN in .env}
+      COLLECT_TOKEN: ${COLLECT_TOKEN:?Set COLLECT_TOKEN in .env}
+      COLLECT_URL: http://collect:8080
+    user: "10001:10001"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    # Binding beyond loopback requires TLS in front of the bridge.
+    ports:
+      - "127.0.0.1:${BRIDGE_PORT:-8000}:8000"
+    networks: [internal, ingress]
+    depends_on:
+      collect:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, /app/.venv/bin/python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=6).read()"]
+      interval: 10s
+      timeout: 7s
+      retries: 5
+networks:
+  internal:
+    internal: true
+  ingress: {}
+volumes:
+  notes: {}
