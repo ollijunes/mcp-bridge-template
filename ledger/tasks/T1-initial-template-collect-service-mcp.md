@@ -1,8 +1,8 @@
 # T1 Initial template: collect service, MCP bridge, Compose, tests and CI
 
-- Status: doing
+- Status: done
 - Lane: feat/initial-template-20261020
-- Evidence: —
+- Evidence: CI 12/12 with tests on Python 3.11–3.14 (Linux, macOS), the Compose smoke test, lint, secrets and ledger: https://github.com/ollijunes/mcp-bridge-template/actions/runs/39456078236
 
 ## Plan
 
