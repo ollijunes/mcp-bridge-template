@@ -40,7 +40,10 @@ ALLOWED_EMAIL_DOMAINS = {
     b"example.net",
     b"users.noreply.github.com",
 }
-ALLOWED_EMAIL_ADDRESSES = {b"@".join((b"noreply", b"github.com"))}
+ALLOWED_EMAIL_ADDRESSES = {
+    b"@".join((b"noreply", b"github.com")),
+    b"@".join((b"support", b"github.com")),
+}
 
 
 def git(*args):
