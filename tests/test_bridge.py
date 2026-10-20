@@ -15,6 +15,67 @@ from bridge import bridge_server
 from bridge.bridge_server import CollectClient, create_app
 
 
+@pytest.mark.parametrize(
+    "hosts,origins,host,origin,status",
+    [
+        (None, None, "bridge.example.com", None, 421),
+        ("", "", "bridge.example.com", None, 421),
+        (" , ", " , ", "bridge.example.com", None, 421),
+        (None, None, "127.0.0.1:8000", "http://localhost:8000", 200),
+        ("bridge.example.com", None, "bridge.example.com", None, 200),
+        ("bridge.example.com", None, "other.example.com", None, 421),
+        ("bridge.example.com", None, "bridge.example.com", "https://bridge.example.com", 403),
+        ("bridge.example.com", None, "bridge.example.com", "http://localhost:8000", 200),
+        (
+            " bridge.example.com, vpn.example.com:8443, ",
+            " https://bridge.example.com, https://vpn.example.com:8443, ",
+            "vpn.example.com:8443",
+            "https://vpn.example.com:8443",
+            200,
+        ),
+        (
+            "bridge.example.com",
+            "https://bridge.example.com",
+            "bridge.example.com",
+            "https://other.example.com",
+            403,
+        ),
+        (None, "https://bridge.example.com", "localhost:8000", "https://bridge.example.com", 200),
+        (None, "https://bridge.example.com", "bridge.example.com", None, 421),
+    ],
+)
+def test_transport_security(monkeypatch, hosts, origins, host, origin, status):
+    if hosts is not None:
+        monkeypatch.setenv("BRIDGE_ALLOWED_HOSTS", hosts)
+    if origins is not None:
+        monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", origins)
+    headers = {
+        "Authorization": "Bearer " + BRIDGE_TOKEN,
+        "Host": host,
+        "Accept": "application/json, text/event-stream",
+    }
+    if origin is not None:
+        headers["Origin"] = origin
+    with TestClient(create_app()) as client:
+        response = client.post(
+            "/mcp",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "transport-security-test", "version": "1.0"},
+                },
+            },
+        )
+        assert response.status_code == status
+        if status == 200:
+            assert response.json()["result"]["serverInfo"]["name"] == "notes-bridge"
+
+
 @pytest.mark.parametrize("name", ["BRIDGE_TOKEN", "COLLECT_TOKEN"])
 @pytest.mark.parametrize("value", [None, "", "short"])
 def test_startup_token(monkeypatch, name, value, capsys):

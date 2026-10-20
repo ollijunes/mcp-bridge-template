@@ -26,7 +26,7 @@ docker compose down -v
 
 - Keep collect on the standard library. It is meant to be read in one go.
 - Keep the bridge on the official MCP Python SDK.
-- Tests use synthetic tokens they create themselves. Never read a real token
+- Tests use synthetic tokens. Never read a real token
   from the environment in a test.
 - Do not add real hostnames, IP addresses, domains or tokens anywhere, not
   even in a temporary commit. Use `example.com`, `127.0.0.1` and the Compose

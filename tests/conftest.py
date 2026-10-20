@@ -25,6 +25,8 @@ def synthetic_environment(monkeypatch, unreachable_url):
     monkeypatch.setenv("BRIDGE_TOKEN", BRIDGE_TOKEN)
     monkeypatch.setenv("COLLECT_URL", unreachable_url)
     monkeypatch.setenv("COLLECT_DB_PATH", ":memory:")
+    monkeypatch.delenv("BRIDGE_ALLOWED_HOSTS", raising=False)
+    monkeypatch.delenv("BRIDGE_ALLOWED_ORIGINS", raising=False)
 
 
 @contextmanager

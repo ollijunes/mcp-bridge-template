@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import BoundedSemaphore
 from urllib.parse import parse_qs, urlsplit
 
 MAX_BODY = 16 * 1024
@@ -34,6 +35,7 @@ class NotesServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, address, db_path, token):
+        self._connection_slots = BoundedSemaphore(32)
         self.db_path = str(db_path)
         self.token = token.encode()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
@@ -44,6 +46,22 @@ class NotesServer(ThreadingHTTPServer):
                 "created_at TEXT NOT NULL)"
             )
         super().__init__(address, NotesHandler)
+
+    def process_request(self, request, client_address):
+        if not self._connection_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._connection_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._connection_slots.release()
 
     @contextmanager
     def connect(self):
@@ -58,6 +76,7 @@ class NotesServer(ThreadingHTTPServer):
 
 class NotesHandler(BaseHTTPRequestHandler):
     server: NotesServer
+    timeout = 5
 
     def log_message(self, format, *args):
         # Request paths and headers may contain secrets; do not log them.
@@ -94,7 +113,6 @@ class NotesHandler(BaseHTTPRequestHandler):
         raise AttributeError(name)
 
     def dispatch(self):
-        self.connection.settimeout(5)
         path = urlsplit(self.path).path
         if self.command == "GET" and path == "/healthz":
             try:

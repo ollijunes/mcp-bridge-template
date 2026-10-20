@@ -110,19 +110,30 @@ and what to think about before you give one to a model.
 
 ## Configuration
 
+Set these in `.env`:
+
 | Variable | Used by | Default |
 | --- | --- | --- |
 | `BRIDGE_TOKEN` | bridge | required, at least 32 characters |
 | `COLLECT_TOKEN` | bridge, collect | required, at least 32 characters |
 | `BRIDGE_PORT` | Compose | `8000`, always bound to `127.0.0.1` |
+| `BRIDGE_ALLOWED_HOSTS` | bridge | empty: loopback only. Comma-separated hostnames, for example `bridge.example.com`, when a proxy or VPN name is used. The list replaces the loopback default, so add `127.0.0.1:*` if you also connect locally |
+| `BRIDGE_ALLOWED_ORIGINS` | bridge | empty: loopback only. Comma-separated origins, for example `https://bridge.example.com` |
+
+Compose sets two more variables itself. Change them only when you run the
+services without Compose:
+
+| Variable | Used by | Value in Compose |
+| --- | --- | --- |
 | `COLLECT_URL` | bridge | `http://collect:8080` |
-| `COLLECT_DB_PATH` | collect | `/data/notes.sqlite3` |
+| `COLLECT_DB_PATH` | collect | `/data/notes.sqlite3`, on the `notes` volume |
 
 ## Limitations
 
 - No TLS. To reach the bridge from another machine, put a reverse proxy with
-  TLS in front of it or use a private network. Do not bind it to `0.0.0.0`
-  without one.
+  TLS in front of it or use a private network, and list the hostname in
+  `BRIDGE_ALLOWED_HOSTS` and `BRIDGE_ALLOWED_ORIGINS`. Do not bind it to
+  `0.0.0.0` without one.
 - One shared token, no user accounts, scopes or rate limits. Fine for one
   person and their own clients; not for a team.
 - The bridge is stateless and answers with JSON, not server-sent events. This
@@ -139,8 +150,8 @@ uv run ruff format --check .
 python3 scripts/check_public_tree.py
 ```
 
-The tests start both services in-process with tokens they generate, so they
-do not need Docker or a real token. CI also builds the images, starts them
+The tests start both services in-process with synthetic tokens, so they do
+not need Docker or a real token. CI also builds the images, starts them
 with Compose and runs [scripts/smoke_test.sh](scripts/smoke_test.sh).
 
 ## License

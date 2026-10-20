@@ -2,7 +2,11 @@ import concurrent.futures
 import hmac
 import http.client
 import json
+import queue
+import socket
 import sqlite3
+import time
+from contextlib import ExitStack
 from datetime import datetime
 from unittest.mock import patch
 
@@ -179,3 +183,54 @@ def test_main(monkeypatch, tmp_path):
     with patch.object(collect_service, "NotesServer") as server:
         collect_service.main()
         server.return_value.serve_forever.assert_called_once()
+
+
+@pytest.mark.parametrize("partial", [b"GET /no", b"GET /notes HTTP/1.1\r\nHost: local"])
+def test_partial_request_times_out(collect_server, partial):
+    started = time.monotonic()
+    with socket.create_connection(collect_server[0].server_address, timeout=6) as sock:
+        sock.sendall(partial)
+        assert sock.recv(1) == b""
+    assert 4.5 <= time.monotonic() - started < 6
+
+
+def test_idle_connection_limit_and_recovery(collect_server, client, monkeypatch):
+    accepted = queue.Queue()
+    original_setup = collect_service.NotesHandler.setup
+
+    def setup(handler):
+        original_setup(handler)
+        accepted.put(True)
+
+    monkeypatch.setattr(collect_service.NotesHandler, "setup", setup)
+    address = collect_server[0].server_address
+    with ExitStack() as stack:
+        idle = []
+        for _ in range(32):
+            idle.append(stack.enter_context(socket.create_connection(address, timeout=6)))
+            accepted.get(timeout=1)
+        for _ in range(4):
+            with socket.create_connection(address, timeout=1) as excess:
+                assert excess.recv(1) == b""
+        assert accepted.empty()
+        for sock in idle:
+            assert sock.recv(1) == b""
+        response = client.get("/notes")
+        assert response.status_code == 200
+        assert response.json() == []
+
+
+def test_connection_slots_released_on_thread_start_failure(collect_server, client):
+    server = collect_server[0]
+    with (
+        socket.socket() as request,
+        patch.object(
+            collect_service.ThreadingHTTPServer,
+            "process_request",
+            side_effect=RuntimeError("start"),
+        ),
+    ):
+        for _ in range(33):
+            with pytest.raises(RuntimeError, match="start"):
+                server.process_request(request, ("127.0.0.1", 12345))
+    assert client.get("/notes").status_code == 200

@@ -11,6 +11,7 @@ import httpx
 import uvicorn
 from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
 from starlette.responses import JSONResponse
 
@@ -127,8 +128,29 @@ def create_app():
         """Report whether collect is reachable and healthy."""
         return await collect.health()
 
+    allowed_hosts = [
+        value.strip()
+        for value in os.environ.get("BRIDGE_ALLOWED_HOSTS", "").split(",")
+        if value.strip()
+    ]
+    allowed_origins = [
+        value.strip()
+        for value in os.environ.get("BRIDGE_ALLOWED_ORIGINS", "").split(",")
+        if value.strip()
+    ]
+    transport_security = None
+    if allowed_hosts or allowed_origins:
+        transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=allowed_hosts or ["127.0.0.1:*", "localhost:*", "[::1]:*"],
+            allowed_origins=allowed_origins
+            or ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"],
+        )
     app = server.streamable_http_app(
-        streamable_http_path="/mcp", json_response=True, stateless_http=True
+        streamable_http_path="/mcp",
+        json_response=True,
+        stateless_http=True,
+        transport_security=transport_security,
     )
     return BearerAuth(app, bridge_token, collect)
 

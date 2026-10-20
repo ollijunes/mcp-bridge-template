@@ -25,6 +25,8 @@ services:
       dockerfile: docker/bridge.Dockerfile
     environment:
       BRIDGE_TOKEN: ${BRIDGE_TOKEN:?Set BRIDGE_TOKEN in .env}
+      BRIDGE_ALLOWED_HOSTS: ${BRIDGE_ALLOWED_HOSTS:-}
+      BRIDGE_ALLOWED_ORIGINS: ${BRIDGE_ALLOWED_ORIGINS:-}
       COLLECT_TOKEN: ${COLLECT_TOKEN:?Set COLLECT_TOKEN in .env}
       COLLECT_URL: http://collect:8080
     user: "10001:10001"
