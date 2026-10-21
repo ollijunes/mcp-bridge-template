@@ -24,6 +24,8 @@ service and keep the rest.
 [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) ·
 [ollijunes.com](https://ollijunes.com)
 
+Read the story behind it: [in English](https://ollijunes.com/mcp-bridge-template-docker-compose/) · [suomeksi](https://ollijunes.com/fi/oma-mcp-palvelin-docker/).
+
 ```mermaid
 flowchart LR
     Client[MCP client] -->|"Streamable HTTP, BRIDGE_TOKEN"| Bridge[bridge :8000]
